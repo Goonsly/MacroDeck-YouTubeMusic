@@ -194,3 +194,14 @@ losing the browser must not wait out a timer.
 `MacroDeck.MainWindow` is untouchable outside Macro Deck: its static constructor
 throws `TypeInitializationException`. `OnUiThread` catches that once, remembers
 it, and writes directly, which is what lets `ProtocolTests` exercise `VariableSync`.
+
+## Acceptance testing
+
+All acceptance criteria in `SPEC.md` §11 passed on 2026-09-20 against Macro Deck
+2.15.1 and Chrome on Windows 10, including the cases most likely to break:
+
+- Next and Previous, which depend on YouTube Music's player markup.
+- Two YouTube Music tabs open: only the active one responds to commands.
+- Controls while Chrome is minimised.
+- Pausing in the browser updating the deck, and reconnection after reload,
+  browser restart and Macro Deck restart.

@@ -44,9 +44,31 @@ $zipPath = Join-Path $artifactDir 'youtube-music-for-macro-deck-extension.zip'
 if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
 Compress-Archive -Path (Join-Path $extensionDir '*') -DestinationPath $zipPath
 
+Write-Host 'Packaging the Macro Deck plugin...' -ForegroundColor Cyan
+$pluginOutput = Join-Path $root "plugin\src\YouTubeMusicPlugin\bin\$Configuration"
+
+# Only the files Macro Deck loads. The build folder also holds a
+# runtimeconfig.json that Macro Deck neither reads nor wants.
+$pluginFiles = @(
+    'YouTubeMusicPlugin.dll',
+    'YouTubeMusicPlugin.deps.json',
+    'Fleck.dll',
+    'ExtensionManifest.json',
+    'ExtensionIcon.png'
+) | ForEach-Object { Join-Path $pluginOutput $_ }
+
+$missing = $pluginFiles | Where-Object { -not (Test-Path $_) }
+if ($missing) { throw "Missing build output: $($missing -join ', ')" }
+
+$manifest = Get-Content (Join-Path $pluginOutput 'ExtensionManifest.json') -Raw | ConvertFrom-Json
+$pluginZip = Join-Path $artifactDir "KeystoneDigital.YouTubeMusic-$($manifest.version).zip"
+if (Test-Path $pluginZip) { Remove-Item $pluginZip -Force }
+Compress-Archive -Path $pluginFiles -DestinationPath $pluginZip
+
 Write-Host ''
 Write-Host 'Done.' -ForegroundColor Green
-Write-Host ("  Plugin output:    " + (Join-Path $root "plugin\src\YouTubeMusicPlugin\bin\$Configuration"))
+Write-Host ("  Plugin output:    " + $pluginOutput)
+Write-Host ("  Plugin bundle:    " + $pluginZip)
 Write-Host ("  Extension bundle: " + $zipPath)
 Write-Host ''
 Write-Host 'Install the plugin with: .\scripts\deploy.ps1'

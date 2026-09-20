@@ -10,8 +10,9 @@ Submit only after the acceptance criteria in [SPEC.md](SPEC.md) §11 pass.
 - A Google account and a one-time USD 5 developer registration fee.
 - Review usually takes a few days. Extensions that touch a loopback port are
   sometimes reviewed more slowly than average.
-- The privacy policy must be live at a public URL before submitting. GitHub
-  Pages on this repository serves `docs/PRIVACY.md`.
+- The privacy policy must be live at a public URL before submitting. The copy in
+  this repository is public and serves that purpose; enabling GitHub Pages would
+  give it a prettier URL but is not required.
 
 ## Item details
 
@@ -98,7 +99,7 @@ for every category, then certify:
 **Privacy policy URL**
 
 ```
-https://goonsly.github.io/MacroDeck-YouTubeMusic/PRIVACY
+https://github.com/Goonsly/MacroDeck-YouTubeMusic/blob/master/docs/PRIVACY.md
 ```
 
 ## Graphics needed
