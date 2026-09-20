@@ -1,0 +1,22 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YouTubeMusicPlugin", "src\YouTubeMusicPlugin\YouTubeMusicPlugin.csproj", "{6B1D8F1E-9E3C-4E2A-9A1B-0C5D2A7F41A1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProtocolTests", "test\ProtocolTests\ProtocolTests.csproj", "{2C9E4A77-5B41-4F0D-8D6E-73B9C1E0D522}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6B1D8F1E-9E3C-4E2A-9A1B-0C5D2A7F41A1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6B1D8F1E-9E3C-4E2A-9A1B-0C5D2A7F41A1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6B1D8F1E-9E3C-4E2A-9A1B-0C5D2A7F41A1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6B1D8F1E-9E3C-4E2A-9A1B-0C5D2A7F41A1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2C9E4A77-5B41-4F0D-8D6E-73B9C1E0D522}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2C9E4A77-5B41-4F0D-8D6E-73B9C1E0D522}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2C9E4A77-5B41-4F0D-8D6E-73B9C1E0D522}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2C9E4A77-5B41-4F0D-8D6E-73B9C1E0D522}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

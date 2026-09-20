@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>ProtocolTests</AssemblyName>
+    <RootNamespace>KeystoneDigital.YouTubeMusic.Tests</RootNamespace>
+    <MSBuildWarningsAsMessages>MSB3277</MSBuildWarningsAsMessages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\YouTubeMusicPlugin\YouTubeMusicPlugin.csproj" />
+
+    <!-- Not transitive from the plugin project, which references it privately. -->
+    <Reference Include="Macro Deck 2">
+      <HintPath>$(MacroDeckPath)\Macro Deck 2.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube Music for Macro Deck",
+  "version": "1.0.0",
+  "description": "Controls YouTube Music from Macro Deck and keeps Macro Deck variables in sync with the real player state.",
+  "minimum_chrome_version": "116",
+  "permissions": [
+    "storage",
+    "alarms"
+  ],
+  "host_permissions": [
+    "https://music.youtube.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://music.youtube.com/*"
+      ],
+      "js": [
+        "player.js",
+        "content.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "options_page": "options.html",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

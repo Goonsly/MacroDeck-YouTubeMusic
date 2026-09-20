@@ -1,0 +1,15 @@
+<Project>
+
+  <!--
+    Location of the Macro Deck installation. The build references
+    "Macro Deck 2.dll" from here at compile time only; it is never copied into
+    the plugin output, because Macro Deck already has its own copy loaded.
+
+    Override on the command line if Macro Deck lives elsewhere:
+      dotnet build -p:MacroDeckPath="C:\Program Files\Macro Deck"
+  -->
+  <PropertyGroup>
+    <MacroDeckPath Condition="'$(MacroDeckPath)' == ''">D:\MacroDeck</MacroDeckPath>
+  </PropertyGroup>
+
+</Project>

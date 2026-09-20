@@ -1,0 +1,59 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+
+    <AssemblyName>YouTubeMusicPlugin</AssemblyName>
+    <RootNamespace>KeystoneDigital.YouTubeMusic</RootNamespace>
+    <Version>1.0.0</Version>
+    <Authors>Keystone Digital</Authors>
+    <Product>YouTube Music for Macro Deck</Product>
+
+    <!-- Produces a deps.json and copies NuGet dependencies (Fleck) next to the
+         plugin, which is how Macro Deck's plugin loader finds them. -->
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+
+    <!-- Macro Deck ships its own WPF assemblies; referencing its DLL surfaces a
+         harmless WindowsBase version conflict that we do not resolve. -->
+    <MSBuildWarningsAsMessages>MSB3277</MSBuildWarningsAsMessages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Compile-time only. Macro Deck loads its own copy at runtime. -->
+    <Reference Include="Macro Deck 2">
+      <HintPath>$(MacroDeckPath)\Macro Deck 2.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Fleck" Version="1.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The protocol tests drive the server directly, without Macro Deck. -->
+    <InternalsVisibleTo Include="ProtocolTests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="ExtensionManifest.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="ExtensionIcon.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <Target Name="VerifyMacroDeckReference" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="!Exists('$(MacroDeckPath)\Macro Deck 2.dll')"
+           Text="Macro Deck 2.dll not found at '$(MacroDeckPath)'. Pass -p:MacroDeckPath=&lt;install folder&gt;." />
+  </Target>
+
+</Project>
