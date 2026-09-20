@@ -17,7 +17,7 @@ internal sealed class ConfiguratorDialog : DialogForm
     private readonly YouTubeMusicPlugin _plugin;
 
     private readonly RoundedTextBox _tokenBox = new();
-    private readonly NumericUpDown _portBox = new();
+    private readonly RoundedTextBox _portBox = new();
     private readonly RoundedTextBox _extensionIdBox = new();
     private readonly Label _statusLabel = new();
 
@@ -74,12 +74,14 @@ internal sealed class ConfiguratorDialog : DialogForm
 
         AddFullWidth(layout, Heading("Port"), 4);
 
-        _portBox.Minimum = 1024;
-        _portBox.Maximum = 65535;
+        // A NumericUpDown would be the obvious control, but WinForms paints its
+        // spinner buttons in the system colour whatever BackColor says, leaving
+        // a white block in a dark dialog. The value is validated in Save().
         _portBox.Width = 120;
-        _portBox.BorderStyle = BorderStyle.None;
-        _portBox.BackColor = Colors.Surface2;
-        _portBox.ForeColor = Color.White;
+        _portBox.Height = 36;
+        _portBox.MaxCharacters = 5;
+        _portBox.PlaceHolderText = PluginSettings.DefaultPort.ToString();
+        _portBox.PlaceHolderColor = PlaceholderColor;
         _portBox.Margin = new Padding(0, 4, 0, 8);
         layout.Controls.Add(_portBox, 0, 5);
 
@@ -88,6 +90,7 @@ internal sealed class ConfiguratorDialog : DialogForm
         _extensionIdBox.Dock = DockStyle.Fill;
         _extensionIdBox.Height = 36;
         _extensionIdBox.PlaceHolderText = "Leave empty to accept any extension with the right token";
+        _extensionIdBox.PlaceHolderColor = PlaceholderColor;
         AddFullWidth(layout, _extensionIdBox, 7);
 
         AddFullWidth(
@@ -146,10 +149,12 @@ internal sealed class ConfiguratorDialog : DialogForm
         Padding = new Padding(0, 4, 0, 0),
     };
 
+    private static Color PlaceholderColor => Color.FromArgb(130, 130, 130);
+
     private void LoadValues()
     {
         _tokenBox.Text = _plugin.Settings.Token;
-        _portBox.Value = _plugin.Settings.Port;
+        _portBox.Text = _plugin.Settings.Port.ToString();
         _extensionIdBox.Text = string.Join(", ", _plugin.Settings.AllowedExtensionIds);
         ShowStatus(_plugin.Server.IsClientConnected ? "Browser connected." : "Waiting for the browser.");
     }
@@ -169,7 +174,12 @@ internal sealed class ConfiguratorDialog : DialogForm
 
     private void Save()
     {
-        var port = (int)_portBox.Value;
+        if (!int.TryParse(_portBox.Text.Trim(), out var port) || port is < 1024 or > 65535)
+        {
+            ShowStatus("Port must be a number between 1024 and 65535.");
+            return;
+        }
+
         var portChanged = port != _plugin.Settings.Port;
 
         _plugin.Settings.SetPort(port);
