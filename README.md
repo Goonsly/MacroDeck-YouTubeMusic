@@ -35,15 +35,29 @@ Under **YouTube Music**: Play / Pause, Play, Pause, Next, Previous.
 
 ## Install
 
-See [docs/INSTALL.md](docs/INSTALL.md). Short version:
+Requires Macro Deck 2.15 or newer and Chrome.
+
+**From a release:** download the plugin zip from
+[Releases](https://github.com/Goonsly/MacroDeck-YouTubeMusic/releases), extract
+it to `%AppData%\Macro Deck\plugins\KeystoneDigital.YouTubeMusic\`, and restart
+Macro Deck. Macro Deck's own extension store does not accept new Macro Deck 2
+plugins, so installation is manual.
+
+**From source:**
 
 ```powershell
 .\scripts\build.ps1     # build, test, package
 .\scripts\deploy.ps1    # install into Macro Deck (close Macro Deck first)
 ```
 
+Building needs the .NET 10 SDK, and Macro Deck installed — the plugin compiles
+against `Macro Deck 2.dll` from the install folder. That assembly is not
+redistributable, so releases are built locally rather than in CI. If Macro Deck
+is not at `D:\MacroDeck`, pass `-p:MacroDeckPath="<your install folder>"`.
+
 Then load `extension\` unpacked in `chrome://extensions` and paste the token from
-the plugin's configuration dialog into the extension's options.
+the plugin's configuration dialog into the extension's options. Full walkthrough
+in [docs/INSTALL.md](docs/INSTALL.md).
 
 ## Security
 
@@ -75,6 +89,13 @@ scripts/       build and deploy
 - [Install guide](docs/INSTALL.md) — setup and troubleshooting
 - [Implementation notes](docs/NOTES.md) — verified Macro Deck API facts
 - [Privacy policy](docs/PRIVACY.md) — required for the Chrome Web Store listing
+- [Store listing](docs/STORE-LISTING.md) — copy for the Chrome Web Store submission
+
+## Licence
+
+MIT. See [LICENSE](LICENSE).
+
+Not affiliated with YouTube, Google or Macro Deck.
 
 ## Status
 

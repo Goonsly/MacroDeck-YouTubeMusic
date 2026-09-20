@@ -6,6 +6,7 @@
   "version": "1.0.0",
   "target-plugin-api-version": 41,
   "target-macro-deck-version": "2.15.0",
+  "repository": "https://github.com/Goonsly/MacroDeck-YouTubeMusic",
   "description": "Controls YouTube Music in Chrome and keeps Macro Deck variables in sync with the real player state.",
   "dll": "YouTubeMusicPlugin.dll"
 }
