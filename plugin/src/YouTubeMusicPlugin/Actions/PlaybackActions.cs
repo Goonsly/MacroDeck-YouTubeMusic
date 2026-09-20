@@ -8,7 +8,7 @@ namespace KeystoneDigital.YouTubeMusic.Actions;
 /// command to the server. It never touches a variable — the variable changes
 /// only when the browser reports what actually happened.
 /// </summary>
-internal abstract class PlaybackAction : PluginAction
+public abstract class PlaybackAction : PluginAction
 {
     protected abstract string Command { get; }
 
@@ -20,7 +20,7 @@ internal abstract class PlaybackAction : PluginAction
     }
 }
 
-internal sealed class PlayPauseAction : PlaybackAction
+public sealed class PlayPauseAction : PlaybackAction
 {
     public override string Name => "Play / Pause";
 
@@ -29,7 +29,7 @@ internal sealed class PlayPauseAction : PlaybackAction
     protected override string Command => "play_pause";
 }
 
-internal sealed class PlayAction : PlaybackAction
+public sealed class PlayAction : PlaybackAction
 {
     public override string Name => "Play";
 
@@ -38,7 +38,7 @@ internal sealed class PlayAction : PlaybackAction
     protected override string Command => "play";
 }
 
-internal sealed class PauseAction : PlaybackAction
+public sealed class PauseAction : PlaybackAction
 {
     public override string Name => "Pause";
 
@@ -47,7 +47,7 @@ internal sealed class PauseAction : PlaybackAction
     protected override string Command => "pause";
 }
 
-internal sealed class NextAction : PlaybackAction
+public sealed class NextAction : PlaybackAction
 {
     public override string Name => "Next";
 
@@ -56,7 +56,7 @@ internal sealed class NextAction : PlaybackAction
     protected override string Command => "next";
 }
 
-internal sealed class PreviousAction : PlaybackAction
+public sealed class PreviousAction : PlaybackAction
 {
     public override string Name => "Previous";
 

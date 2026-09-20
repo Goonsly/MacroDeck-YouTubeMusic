@@ -39,6 +39,27 @@ internal static class Program
 
         server.ClientLost += () => lostSignal.Release();
 
+        await RunAsync("every action type is public", () =>
+        {
+            // Macro Deck instantiates action types by reflection and refuses
+            // anything that is not public: "Only public types can be processed."
+            // An internal action still counts toward the plugin's action total,
+            // so the action list simply renders empty with no error in the UI.
+            var actionTypes = typeof(YouTubeMusicPlugin).Assembly
+                .GetTypes()
+                .Where(type => typeof(PluginAction).IsAssignableFrom(type) && !type.IsAbstract)
+                .ToList();
+
+            Check(actionTypes.Count == 5, $"five action types found, got {actionTypes.Count}");
+
+            foreach (var type in actionTypes)
+            {
+                Check(type.IsPublic, $"{type.Name} is public");
+            }
+
+            return Task.CompletedTask;
+        });
+
         server.Start(Port, Token, Array.Empty<string>());
 
         await RunAsync("a website origin is refused", async () =>

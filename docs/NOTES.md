@@ -80,15 +80,47 @@ finds any existing variable with our names, and logs the observed `Creator` and
 `Type`. `AdoptOrCreate` then writes through `SetValue` and re-reads the variable
 to confirm the value landed.
 
-Record the observed behaviour here after the first run against real Macro Deck:
+**Resolved on the first run against Macro Deck 2.15.1, 2026-09-20.** From the log:
 
-- `youtube_music_playing` existing creator: _to be filled in on first run_
-- Value written by the plugin visible in the Macro Deck variables view: _to be filled in_
-- Duplicate variable created: _to be filled in_
+```
+Variable 'youtube_music_playing' already exists (creator 'User', type 'Bool');
+  it will be reused, not duplicated.
+...
+Variable 'youtube_music_playing' already exists (creator 'YouTubeMusicPlugin', type 'Bool');
+  it will be reused, not duplicated.
+```
 
-If Macro Deck refuses to let a plugin write a user-created variable, the fallback
-is documented in `docs/INSTALL.md`: delete the manual variable once and let the
-plugin create it.
+- Existing creator before the plugin ran: `User`.
+- After the plugin wrote to it, the creator became `YouTubeMusicPlugin`.
+- No duplicate variable was created.
+
+So `VariableManager.SetValue` adopts a user-created variable and transfers
+ownership to the writing plugin. The hand-made `youtube_music_playing` works
+as-is, and the fallback in `docs/INSTALL.md` is not needed.
+
+## Action types must be public
+
+Macro Deck instantiates `PluginAction` subclasses by reflection and rejects
+non-public ones:
+
+```
+System.InvalidOperationException: ...PlayPauseAction is inaccessible due to its
+protection level. Only public types can be processed.
+```
+
+The failure is quiet in the UI: the plugin still reports "5 actions", but the
+action list renders empty. The exception appears only in the Macro Deck log.
+`ProtocolTests` now asserts that every concrete `PluginAction` in the assembly is
+public, so this cannot come back.
+
+## Update check errors are expected
+
+```
+[MacroDeck] Failed to check for updates for KeystoneDigital.YouTubeMusic
+```
+
+The plugin is not published in the Macro Deck extension store, so there is
+nothing to check against. Harmless.
 
 ## Origin allow-list behaviour
 
