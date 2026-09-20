@@ -1,4 +1,5 @@
 using System.Windows.Forms;
+using SuchByte.MacroDeck.GUI;
 using SuchByte.MacroDeck.GUI.CustomControls;
 
 namespace KeystoneDigital.YouTubeMusic.GUI;
@@ -6,14 +7,18 @@ namespace KeystoneDigital.YouTubeMusic.GUI;
 /// <summary>
 /// Plugin configuration: the connection token the browser extension needs, the
 /// port, and the optional extension ID allow-list.
+///
+/// Controls come from Macro Deck's own themed set where one exists, so the
+/// dialog matches the rest of the application. A plain WinForms TextBox renders
+/// white-on-dark here and looks broken.
 /// </summary>
 internal sealed class ConfiguratorDialog : DialogForm
 {
     private readonly YouTubeMusicPlugin _plugin;
 
-    private readonly TextBox _tokenBox = new();
+    private readonly RoundedTextBox _tokenBox = new();
     private readonly NumericUpDown _portBox = new();
-    private readonly TextBox _extensionIdBox = new();
+    private readonly RoundedTextBox _extensionIdBox = new();
     private readonly Label _statusLabel = new();
 
     public ConfiguratorDialog(YouTubeMusicPlugin plugin)
@@ -21,7 +26,7 @@ internal sealed class ConfiguratorDialog : DialogForm
         _plugin = plugin;
 
         Text = "YouTube Music";
-        ClientSize = new Size(560, 430);
+        ClientSize = new Size(580, 470);
         StartPosition = FormStartPosition.CenterParent;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
@@ -39,19 +44,25 @@ internal sealed class ConfiguratorDialog : DialogForm
             Padding = new Padding(24, 56, 24, 24),
             ColumnCount = 2,
             RowCount = 9,
+            AutoSize = false,
         };
 
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        for (var row = 0; row < layout.RowCount; row++)
+        {
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        }
 
         AddFullWidth(layout, Heading("Connection token"), 0);
 
         _tokenBox.ReadOnly = true;
         _tokenBox.Dock = DockStyle.Fill;
+        _tokenBox.Height = 36;
         _tokenBox.Font = new Font(FontFamily.GenericMonospace, 9.5f);
         layout.Controls.Add(_tokenBox, 0, 1);
 
-        var copyButton = new ButtonPrimary { Text = "Copy", AutoSize = true };
+        var copyButton = new ButtonPrimary { Text = "Copy", AutoSize = true, Margin = new Padding(8, 0, 0, 0) };
         copyButton.Click += (_, _) => CopyToken();
         layout.Controls.Add(copyButton, 1, 1);
 
@@ -66,17 +77,22 @@ internal sealed class ConfiguratorDialog : DialogForm
         _portBox.Minimum = 1024;
         _portBox.Maximum = 65535;
         _portBox.Width = 120;
+        _portBox.BorderStyle = BorderStyle.None;
+        _portBox.BackColor = Colors.Surface2;
+        _portBox.ForeColor = Color.White;
+        _portBox.Margin = new Padding(0, 4, 0, 8);
         layout.Controls.Add(_portBox, 0, 5);
 
         AddFullWidth(layout, Heading("Allowed Chrome extension IDs (optional)"), 6);
 
         _extensionIdBox.Dock = DockStyle.Fill;
+        _extensionIdBox.Height = 36;
+        _extensionIdBox.PlaceHolderText = "Leave empty to accept any extension with the right token";
         AddFullWidth(layout, _extensionIdBox, 7);
 
         AddFullWidth(
             layout,
-            Hint("Comma separated. Leave empty to accept any Chrome extension that presents the "
-                 + "correct token. Websites are refused either way."),
+            Hint("Comma separated. Websites are refused either way."),
             8);
 
         var buttonRow = new FlowLayoutPanel
@@ -85,6 +101,7 @@ internal sealed class ConfiguratorDialog : DialogForm
             FlowDirection = FlowDirection.RightToLeft,
             Padding = new Padding(24, 8, 24, 16),
             Height = 60,
+            BackColor = Color.Transparent,
         };
 
         var saveButton = new ButtonPrimary { Text = "Save", AutoSize = true };
@@ -94,7 +111,8 @@ internal sealed class ConfiguratorDialog : DialogForm
         closeButton.Click += (_, _) => Close();
 
         _statusLabel.AutoSize = true;
-        _statusLabel.Padding = new Padding(0, 8, 12, 0);
+        _statusLabel.ForeColor = Color.FromArgb(160, 160, 160);
+        _statusLabel.Padding = new Padding(0, 10, 12, 0);
 
         buttonRow.Controls.Add(closeButton);
         buttonRow.Controls.Add(saveButton);
@@ -114,17 +132,18 @@ internal sealed class ConfiguratorDialog : DialogForm
     {
         Text = text,
         AutoSize = true,
+        ForeColor = Color.White,
         Font = new Font(SystemFonts.DefaultFont, FontStyle.Bold),
-        Padding = new Padding(0, 12, 0, 4),
+        Padding = new Padding(0, 14, 0, 4),
     };
 
     private static Label Hint(string text) => new()
     {
         Text = text,
-        AutoSize = false,
-        Height = 34,
-        Dock = DockStyle.Fill,
-        ForeColor = Color.Gray,
+        AutoSize = true,
+        MaximumSize = new Size(500, 0),
+        ForeColor = Color.FromArgb(150, 150, 150),
+        Padding = new Padding(0, 4, 0, 0),
     };
 
     private void LoadValues()
