@@ -63,9 +63,15 @@ internal sealed class VariableSync
 
     private void Set(bool connected, bool playing, bool force)
     {
+        bool connectedChanged;
+        bool playingChanged;
+
         lock (_gate)
         {
-            if (!force && _lastConnected == connected && _lastPlaying == playing)
+            connectedChanged = force || _lastConnected != connected;
+            playingChanged = force || _lastPlaying != playing;
+
+            if (!connectedChanged && !playingChanged)
             {
                 return;
             }
@@ -74,10 +80,62 @@ internal sealed class VariableSync
             _lastPlaying = playing;
         }
 
-        Write(ConnectedVariable, connected);
-        Write(PlayingVariable, playing);
+        // Only write what actually moved. Every write makes Macro Deck repaint
+        // the buttons bound to that variable, and a repaint we do not need is a
+        // repaint that can go wrong.
+        OnUiThread(() =>
+        {
+            if (connectedChanged)
+            {
+                Write(ConnectedVariable, connected);
+            }
+
+            if (playingChanged)
+            {
+                Write(PlayingVariable, playing);
+            }
+        });
 
         MacroDeckLogger.Verbose(_plugin, "State: connected={0} playing={1}", connected, playing);
+    }
+
+    /// <summary>
+    /// Runs the write on Macro Deck's UI thread.
+    ///
+    /// Setting a variable makes Macro Deck repaint every button bound to it. Doing
+    /// that from a socket thread races the painter, and GDI+ answers with
+    /// "Parameter is not valid" out of RoundedButton.OnPaint — the button then
+    /// renders as a broken-image tile until it is redrawn.
+    /// </summary>
+    private void OnUiThread(Action write)
+    {
+        var window = SuchByte.MacroDeck.MacroDeck.MainWindow;
+
+        if (window is null || window.IsDisposed || !window.IsHandleCreated)
+        {
+            // Too early, or Macro Deck is running without its window. Nothing is
+            // painting, so writing here is safe.
+            write();
+            return;
+        }
+
+        try
+        {
+            if (window.InvokeRequired)
+            {
+                window.BeginInvoke(write);
+            }
+            else
+            {
+                write();
+            }
+        }
+        catch (Exception exception)
+        {
+            // The window can be torn down between the checks above and the call.
+            MacroDeckLogger.Warning(_plugin, "Falling back to a direct variable write: {0}", exception.Message);
+            write();
+        }
     }
 
     private void Write(string name, bool value)

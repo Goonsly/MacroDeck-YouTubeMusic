@@ -153,3 +153,25 @@ re-establishes the connection if the worker was terminated anyway.
 script, which runs in an isolated world. V2 metadata must come from the player
 DOM or from a script injected into the main world. This corrects the ordering in
 the original build plan.
+
+## Variable writes must happen on the UI thread
+
+Observed 2026-09-20 during live testing. A button bound to
+`youtube_music_playing` painted as a broken-image tile, and the Macro Deck log
+showed:
+
+```
+[ERR] [MacroDeck] Unhandled thread exception
+System.ArgumentException: Parameter is not valid.
+   at System.Drawing.Graphics.DrawImage(Image image, Rectangle rect)
+   at SuchByte.MacroDeck.GUI.CustomControls.RoundedButton.OnPaint(PaintEventArgs pe)
+```
+
+Setting a variable makes Macro Deck repaint every button bound to it. The plugin
+was writing from a Fleck socket thread, so the repaint raced the WinForms
+painter and GDI+ rejected the shared `Bitmap`.
+
+`VariableSync` now marshals writes through `SuchByte.MacroDeck.MacroDeck.MainWindow`
+(`BeginInvoke` when `InvokeRequired`), falling back to a direct write when there
+is no window yet. It also writes only the variable that actually changed rather
+than both every time.
