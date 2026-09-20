@@ -60,6 +60,55 @@ internal static class Program
             return Task.CompletedTask;
         });
 
+        await RunAsync("a burst of state changes collapses into one write", async () =>
+        {
+            var writes = new List<(string Name, bool Value)>();
+            using var sync = new VariableSync(
+                plugin,
+                TimeSpan.FromMilliseconds(80),
+                (name, value) => { lock (writes) writes.Add((name, value)); });
+
+            // A track change looks like this: playing, paused, playing again,
+            // all within a few milliseconds.
+            sync.Set(connected: true, playing: true);
+            sync.Set(connected: true, playing: false);
+            sync.Set(connected: true, playing: true);
+            sync.Set(connected: true, playing: false);
+
+            await Task.Delay(400);
+
+            lock (writes)
+            {
+                Check(writes.Count == 2, $"two writes for four changes, got {writes.Count}");
+                Check(
+                    writes.Any(w => w.Name == "youtube_music_connected" && w.Value),
+                    "connected written as true");
+                Check(
+                    writes.Any(w => w.Name == "youtube_music_playing" && !w.Value),
+                    "playing written as the final value, false");
+            }
+        });
+
+        await RunAsync("disconnection is written immediately", async () =>
+        {
+            var writes = new List<(string Name, bool Value)>();
+            using var sync = new VariableSync(
+                plugin,
+                TimeSpan.FromMilliseconds(5000),
+                (name, value) => { lock (writes) writes.Add((name, value)); });
+
+            sync.Clear();
+
+            // No delay: losing the browser must not wait out the debounce.
+            lock (writes)
+            {
+                Check(writes.Count == 2, $"both variables written at once, got {writes.Count}");
+                Check(writes.All(w => !w.Value), "both written as false");
+            }
+
+            await Task.CompletedTask;
+        });
+
         server.Start(Port, Token, Array.Empty<string>());
 
         await RunAsync("a website origin is refused", async () =>

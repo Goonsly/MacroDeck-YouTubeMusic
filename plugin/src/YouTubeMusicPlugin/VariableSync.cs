@@ -11,20 +11,49 @@ namespace KeystoneDigital.YouTubeMusic;
 /// a command was sent — only because the browser reported what actually
 /// happened.
 /// </summary>
-internal sealed class VariableSync
+internal sealed class VariableSync : IDisposable
 {
     public const string ConnectedVariable = "youtube_music_connected";
     public const string PlayingVariable = "youtube_music_playing";
 
+    /// <summary>
+    /// How long to wait before writing a change, so a burst collapses into one
+    /// write. A track change fires pause then play within milliseconds; without
+    /// this, Macro Deck swaps the button icon twice in quick succession.
+    /// </summary>
+    private static readonly TimeSpan DefaultDebounce = TimeSpan.FromMilliseconds(200);
+
     private readonly MacroDeckPlugin _plugin;
     private readonly object _gate = new();
+    private readonly TimeSpan _debounce;
+    private readonly Action<string, bool> _write;
+    private readonly System.Threading.Timer _timer;
 
-    private bool? _lastConnected;
-    private bool? _lastPlaying;
+    private bool _pendingConnected;
+    private bool _pendingPlaying;
+    private bool _flushScheduled;
+    private bool _forceNextFlush;
+
+    private static bool _noMacroDeckHost;
+
+    private bool? _lastWrittenConnected;
+    private bool? _lastWrittenPlaying;
 
     public VariableSync(MacroDeckPlugin plugin)
+        : this(plugin, DefaultDebounce, null)
+    {
+    }
+
+    /// <param name="write">
+    /// Injected by the tests so that debouncing can be exercised without Macro
+    /// Deck. Production passes null and writes through <see cref="VariableManager"/>.
+    /// </param>
+    internal VariableSync(MacroDeckPlugin plugin, TimeSpan debounce, Action<string, bool>? write)
     {
         _plugin = plugin;
+        _debounce = debounce;
+        _write = write ?? Write;
+        _timer = new System.Threading.Timer(_ => Flush(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
     }
 
     /// <summary>
@@ -63,41 +92,84 @@ internal sealed class VariableSync
 
     private void Set(bool connected, bool playing, bool force)
     {
-        bool connectedChanged;
-        bool playingChanged;
+        lock (_gate)
+        {
+            _pendingConnected = connected;
+            _pendingPlaying = playing;
+            _forceNextFlush |= force;
+
+            if (!force)
+            {
+                // Trailing debounce: the first change schedules a flush, later
+                // changes inside the window only update what will be written. A
+                // flush is therefore guaranteed within one debounce interval,
+                // however hard the state flaps.
+                if (_flushScheduled)
+                {
+                    return;
+                }
+
+                _flushScheduled = true;
+                _timer.Change(_debounce, Timeout.InfiniteTimeSpan);
+                return;
+            }
+
+            // Connect, disconnect and startup are not worth delaying.
+            _flushScheduled = false;
+            _timer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        }
+
+        Flush();
+    }
+
+    private void Flush()
+    {
+        bool connected;
+        bool playing;
+        bool writeConnected;
+        bool writePlaying;
 
         lock (_gate)
         {
-            connectedChanged = force || _lastConnected != connected;
-            playingChanged = force || _lastPlaying != playing;
+            _flushScheduled = false;
+            connected = _pendingConnected;
+            playing = _pendingPlaying;
 
-            if (!connectedChanged && !playingChanged)
+            var force = _forceNextFlush;
+            _forceNextFlush = false;
+
+            // Only write what actually moved. Every write makes Macro Deck
+            // repaint the buttons bound to that variable, and a repaint we do
+            // not need is a repaint that can go wrong.
+            writeConnected = force || _lastWrittenConnected != connected;
+            writePlaying = force || _lastWrittenPlaying != playing;
+
+            if (!writeConnected && !writePlaying)
             {
                 return;
             }
 
-            _lastConnected = connected;
-            _lastPlaying = playing;
+            _lastWrittenConnected = connected;
+            _lastWrittenPlaying = playing;
         }
 
-        // Only write what actually moved. Every write makes Macro Deck repaint
-        // the buttons bound to that variable, and a repaint we do not need is a
-        // repaint that can go wrong.
         OnUiThread(() =>
         {
-            if (connectedChanged)
+            if (writeConnected)
             {
-                Write(ConnectedVariable, connected);
+                _write(ConnectedVariable, connected);
             }
 
-            if (playingChanged)
+            if (writePlaying)
             {
-                Write(PlayingVariable, playing);
+                _write(PlayingVariable, playing);
             }
         });
 
         MacroDeckLogger.Verbose(_plugin, "State: connected={0} playing={1}", connected, playing);
     }
+
+    public void Dispose() => _timer.Dispose();
 
     /// <summary>
     /// Runs the write on Macro Deck's UI thread.
@@ -109,18 +181,24 @@ internal sealed class VariableSync
     /// </summary>
     private void OnUiThread(Action write)
     {
-        var window = SuchByte.MacroDeck.MacroDeck.MainWindow;
-
-        if (window is null || window.IsDisposed || !window.IsHandleCreated)
+        if (_noMacroDeckHost)
         {
-            // Too early, or Macro Deck is running without its window. Nothing is
-            // painting, so writing here is safe.
             write();
             return;
         }
 
         try
         {
+            var window = SuchByte.MacroDeck.MacroDeck.MainWindow;
+
+            if (window is null || window.IsDisposed || !window.IsHandleCreated)
+            {
+                // Too early, or Macro Deck is running without its window.
+                // Nothing is painting, so writing here is safe.
+                write();
+                return;
+            }
+
             if (window.InvokeRequired)
             {
                 window.BeginInvoke(write);
@@ -129,6 +207,13 @@ internal sealed class VariableSync
             {
                 write();
             }
+        }
+        catch (TypeInitializationException)
+        {
+            // Running outside Macro Deck, as the protocol tests do. There is no
+            // UI thread to marshal onto, and no painter to race.
+            _noMacroDeckHost = true;
+            write();
         }
         catch (Exception exception)
         {

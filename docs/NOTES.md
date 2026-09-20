@@ -175,3 +175,22 @@ painter and GDI+ rejected the shared `Bitmap`.
 (`BeginInvoke` when `InvokeRequired`), falling back to a direct write when there
 is no window yet. It also writes only the variable that actually changed rather
 than both every time.
+
+## State writes are debounced by 200 ms
+
+The paint crash above survived moving writes onto the UI thread, so the root
+cause is inside Macro Deck's own button painter, not this plugin. It is not
+fixable from here; it can only be triggered less often.
+
+A track change fires `pause` then `play` within milliseconds, which made Macro
+Deck swap the bound button's icon several times in quick succession. `VariableSync`
+now coalesces changes over a 200 ms trailing window: the first change schedules a
+flush, later changes inside the window only update what will be written. A write
+is therefore guaranteed within one interval no matter how hard the state flaps.
+
+Connect, disconnect and startup bypass the debounce and write immediately —
+losing the browser must not wait out a timer.
+
+`MacroDeck.MainWindow` is untouchable outside Macro Deck: its static constructor
+throws `TypeInitializationException`. `OnUiThread` catches that once, remembers
+it, and writes directly, which is what lets `ProtocolTests` exercise `VariableSync`.
