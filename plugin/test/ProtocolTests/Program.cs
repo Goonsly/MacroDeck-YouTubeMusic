@@ -97,6 +97,26 @@ internal static class Program
             }
         });
 
+        await RunAsync("a first report still writes every readable field", async () =>
+        {
+            var writes = new List<(string Name, object Value)>();
+            using var sync = new VariableSync(
+                plugin,
+                TimeSpan.FromMilliseconds(40),
+                (name, value) => { lock (writes) writes.Add((name, value)); });
+
+            sync.Set(Playing(true));
+            await Task.Delay(250);
+
+            lock (writes)
+            {
+                foreach (var name in VariableSync.AllVariables)
+                {
+                    Check(writes.Any(w => w.Name == name), $"{name} written");
+                }
+            }
+        });
+
         await RunAsync("unreadable values leave their variables alone", async () =>
         {
             var writes = new List<(string Name, object Value)>();

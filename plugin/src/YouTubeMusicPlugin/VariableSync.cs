@@ -29,6 +29,21 @@ internal sealed class VariableSync : IDisposable
     };
 
     /// <summary>
+    /// What each variable is created with when it does not exist yet. These are
+    /// placeholders so the variable can be bound to a button; the browser
+    /// overwrites them as soon as it reports.
+    /// </summary>
+    private static readonly (string Name, object Value)[] Defaults =
+    {
+        (ConnectedVariable, false),
+        (PlayingVariable, false),
+        (VolumeVariable, 0),
+        (MutedVariable, false),
+        (ShuffleVariable, false),
+        (RepeatVariable, "off"),
+    };
+
+    /// <summary>
     /// How long to wait before writing a change, so a burst collapses into one
     /// write. A track change fires pause then play within milliseconds; without
     /// this, Macro Deck swaps the button icon twice in quick succession.
@@ -73,23 +88,29 @@ internal sealed class VariableSync : IDisposable
     /// </summary>
     public void Initialize()
     {
-        foreach (var name in AllVariables)
+        foreach (var (name, fallback) in Defaults)
         {
             var existing = VariableManager.Variables
                 .FirstOrDefault(variable => string.Equals(variable.Name, name, StringComparison.OrdinalIgnoreCase));
 
-            if (existing is null)
+            if (existing is not null)
             {
-                MacroDeckLogger.Information(_plugin, "Variable '{0}' does not exist yet; it will be created.", name);
+                MacroDeckLogger.Information(
+                    _plugin,
+                    "Variable '{0}' already exists (creator '{1}', type '{2}'); it will be reused, not duplicated.",
+                    name,
+                    existing.Creator ?? "unknown",
+                    existing.Type ?? "unknown");
                 continue;
             }
 
-            MacroDeckLogger.Information(
-                _plugin,
-                "Variable '{0}' already exists (creator '{1}', type '{2}'); it will be reused, not duplicated.",
-                name,
-                existing.Creator ?? "unknown",
-                existing.Type ?? "unknown");
+            // Create it now, even though the browser has not reported yet.
+            // A variable that does not exist cannot be bound to a button, and
+            // shuffle, repeat and volume may never be readable on a given page.
+            // Creating it is a separate concern from keeping it truthful: once
+            // it exists, an unreadable value leaves it alone.
+            MacroDeckLogger.Information(_plugin, "Creating variable '{0}' with its default value.", name);
+            OnUiThread(() => _write(name, fallback));
         }
 
         // Until a browser reports in, nothing is connected and nothing is playing.
