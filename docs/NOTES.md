@@ -205,3 +205,28 @@ All acceptance criteria in `SPEC.md` §11 passed on 2026-09-20 against Macro Dec
 - Controls while Chrome is minimised.
 - Pausing in the browser updating the deck, and reconnection after reload,
   browser restart and Macro Deck restart.
+
+## YouTube Music player-bar markup, verified 2026-09-21
+
+Read from the live page rather than assumed. Three corrections to the first
+implementation of shuffle and repeat:
+
+| What | Where it actually lives |
+| --- | --- |
+| Control elements | `yt-icon-button.shuffle` / `.repeat` / `.next-button` / `.previous-button`, **not** `tp-yt-paper-icon-button` |
+| Shuffle state | `ytmusic-player-bar[shuffle-on]` — a bare attribute on the **player bar** |
+| Repeat state | `ytmusic-player-bar[repeat-mode]` = `NONE` \| `ALL` \| `ONE` |
+
+The shuffle button itself carries no `aria-pressed`, and its `title` stays
+"Shuffle" whether shuffle is on or off — so reading the button can never work.
+That was the bug: `shuffleState()` returned null forever, the extension sent
+null, and the plugin correctly left the variable alone.
+
+The repeat button's `title` and `label` name the mode **currently in effect**
+("Repeat off", "Repeat all", "Repeat one"), not the one the next click will
+select. The first implementation assumed the opposite and mapped the fallback a
+step backwards round the cycle.
+
+Selector lists now try `yt-icon-button` first, then the old
+`tp-yt-paper-icon-button`, then the bare class. The bare class is why clicking
+worked all along while the state never updated.

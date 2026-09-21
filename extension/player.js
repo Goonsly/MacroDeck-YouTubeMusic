@@ -19,25 +19,32 @@ const YTMPlayer = (() => {
   const VOLUME_STEP = 0.05;
 
   // Ordered by preference. The first selector that matches a visible element wins.
+  //
+  // YouTube Music used tp-yt-paper-icon-button and now uses yt-icon-button, so
+  // both are listed before the bare class name.
   const NEXT_SELECTORS = [
+    'ytmusic-player-bar yt-icon-button.next-button',
     'ytmusic-player-bar tp-yt-paper-icon-button.next-button',
     'ytmusic-player-bar .next-button',
     '.ytmusic-player-bar .next-button',
   ];
 
   const PREVIOUS_SELECTORS = [
+    'ytmusic-player-bar yt-icon-button.previous-button',
     'ytmusic-player-bar tp-yt-paper-icon-button.previous-button',
     'ytmusic-player-bar .previous-button',
     '.ytmusic-player-bar .previous-button',
   ];
 
   const SHUFFLE_SELECTORS = [
+    'ytmusic-player-bar yt-icon-button.shuffle',
     'ytmusic-player-bar tp-yt-paper-icon-button.shuffle',
     'ytmusic-player-bar .shuffle',
     '.ytmusic-player-bar .shuffle',
   ];
 
   const REPEAT_SELECTORS = [
+    'ytmusic-player-bar yt-icon-button.repeat',
     'ytmusic-player-bar tp-yt-paper-icon-button.repeat',
     'ytmusic-player-bar .repeat',
     '.ytmusic-player-bar .repeat',
@@ -163,8 +170,26 @@ const YTMPlayer = (() => {
 
   /* ---------------------------------------------------- shuffle, repeat */
 
-  /** True when shuffle is on, false when off, null when it cannot be read. */
+  function playerBar() {
+    for (const selector of PLAYER_BAR_SELECTORS) {
+      const bar = document.querySelector(selector);
+      if (bar) return bar;
+    }
+    return null;
+  }
+
+  /**
+   * True when shuffle is on, false when off, null when it cannot be read.
+   *
+   * The state lives on the player bar as a bare `shuffle-on` attribute, not on
+   * the button: the shuffle button carries no aria-pressed and its title stays
+   * "Shuffle" in both states. Verified against the live page 2026-09-21.
+   */
   function shuffleState() {
+    const bar = playerBar();
+    if (bar) return bar.hasAttribute('shuffle-on');
+
+    // Older markup exposed the state on the button itself.
     const button = firstMatch(SHUFFLE_SELECTORS);
     if (!button) return null;
 
@@ -172,7 +197,6 @@ const YTMPlayer = (() => {
     if (pressed === 'true') return true;
     if (pressed === 'false') return false;
 
-    // Some builds mark the active state with a class or attribute instead.
     if (button.classList.contains('active') || button.hasAttribute('active')) return true;
 
     return null;
@@ -180,29 +204,36 @@ const YTMPlayer = (() => {
 
   const shuffle = () => clickControl(SHUFFLE_SELECTORS, 'shuffle');
 
-  /** 'off', 'all', 'one', or null when the mode cannot be read. */
+  /**
+   * 'off', 'all', 'one', or null when the mode cannot be read.
+   *
+   * The player bar's `repeat-mode` attribute reads NONE, ALL or ONE. Verified
+   * against the live page 2026-09-21.
+   */
   function repeatState() {
-    for (const selector of PLAYER_BAR_SELECTORS) {
-      const bar = document.querySelector(selector);
-      if (!bar) continue;
+    const bar = playerBar();
+    const attribute = bar?.getAttribute('repeat-mode') || bar?.getAttribute('repeat-mode_');
 
-      // The player bar carries the mode directly; this is the reliable source.
-      const attribute = bar.getAttribute('repeat-mode_') || bar.getAttribute('repeat-mode');
-      if (attribute) {
-        const mode = attribute.toUpperCase();
-        if (mode.includes('NONE') || mode.includes('OFF')) return 'off';
-        if (mode.includes('ALL')) return 'all';
-        if (mode.includes('ONE')) return 'one';
-      }
+    if (attribute) {
+      const mode = attribute.toUpperCase();
+      if (mode.includes('NONE') || mode.includes('OFF')) return 'off';
+      if (mode.includes('ALL')) return 'all';
+      if (mode.includes('ONE')) return 'one';
     }
 
-    // Fall back to the button's own label, which names the mode it switches to
-    // next rather than the current one, so read it one step back round the cycle.
+    // Fall back to the button's label, which names the mode currently in
+    // effect — "Repeat off", "Repeat all", "Repeat one".
     const button = firstMatch(REPEAT_SELECTORS);
-    const label = (button?.getAttribute('title') || button?.getAttribute('aria-label') || '').toLowerCase();
-    if (label.includes('repeat one')) return 'all';
-    if (label.includes('repeat all')) return 'off';
-    if (label.includes('repeat off') || label.includes('no repeat')) return 'one';
+    const label = (
+      button?.getAttribute('title') ||
+      button?.getAttribute('label') ||
+      button?.getAttribute('aria-label') ||
+      ''
+    ).toLowerCase();
+
+    if (label.includes('repeat one')) return 'one';
+    if (label.includes('repeat all')) return 'all';
+    if (label.includes('repeat off') || label.includes('no repeat')) return 'off';
 
     return null;
   }
