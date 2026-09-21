@@ -65,10 +65,18 @@ $pluginZip = Join-Path $artifactDir "KeystoneDigital.YouTubeMusic-$($manifest.ve
 if (Test-Path $pluginZip) { Remove-Item $pluginZip -Force }
 Compress-Archive -Path $pluginFiles -DestinationPath $pluginZip
 
+Write-Host 'Packaging the icon pack...' -ForegroundColor Cyan
+$iconPackDir = Join-Path $root 'iconpack\Goonsly.YoutubeIcons'
+$iconManifest = Get-Content (Join-Path $iconPackDir 'ExtensionManifest.json') -Raw | ConvertFrom-Json
+$iconZip = Join-Path $artifactDir "$($iconManifest.packageId)-$($iconManifest.version).zip"
+if (Test-Path $iconZip) { Remove-Item $iconZip -Force }
+Compress-Archive -Path (Join-Path $iconPackDir '*') -DestinationPath $iconZip
+
 Write-Host ''
 Write-Host 'Done.' -ForegroundColor Green
 Write-Host ("  Plugin output:    " + $pluginOutput)
 Write-Host ("  Plugin bundle:    " + $pluginZip)
 Write-Host ("  Extension bundle: " + $zipPath)
+Write-Host ("  Icon pack bundle: " + $iconZip)
 Write-Host ''
 Write-Host 'Install the plugin with: .\scripts\deploy.ps1'

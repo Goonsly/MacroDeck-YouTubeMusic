@@ -1,0 +1,10 @@
+{
+  "type": 1,
+  "name": "Youtube Icons",
+  "author": "Goonsly",
+  "repository": "",
+  "packageId": "Goonsly.YoutubeIcons",
+  "version": "1.0.0",
+  "target-plugin-api-version": 41,
+  "dll": ""
+}

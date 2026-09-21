@@ -9,7 +9,7 @@
 
     <AssemblyName>YouTubeMusicPlugin</AssemblyName>
     <RootNamespace>KeystoneDigital.YouTubeMusic</RootNamespace>
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
     <Authors>Keystone Digital</Authors>
     <Product>YouTube Music for Macro Deck</Product>
 

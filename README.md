@@ -78,9 +78,23 @@ extension/     Manifest V3 extension, plain JavaScript, no build step
 plugin/        C# plugin (net10.0-windows, Macro Deck plugin API 41)
   src/         the plugin itself
   test/        protocol tests that run without Macro Deck or Chrome
+iconpack/      optional Macro Deck icon pack for the five actions
 docs/          specification, wire protocol, install guide, notes
 scripts/       build and deploy
 ```
+
+## Icons
+
+An optional Macro Deck icon pack ships with each release: play, pause, play/pause,
+next and previous, 350×350, in YouTube red. Extract
+`Goonsly.YoutubeIcons-1.0.0.zip` into:
+
+```
+%AppData%\Macro Deck\iconpacks\Goonsly.YoutubeIcons\
+```
+
+Restart Macro Deck and the icons appear under **Youtube Icons** in the icon
+selector. Nothing depends on them; any icon pack works.
 
 ## Documentation
 

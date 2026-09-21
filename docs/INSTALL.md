@@ -76,6 +76,18 @@ extension:
 2. Paste it into **Allowed Chrome extension IDs** in the plugin's configuration.
 3. Save.
 
+## 6b. Optional: install the icon pack
+
+Each release includes `Goonsly.YoutubeIcons-<version>.zip` — play, pause,
+play/pause, next and previous at 350×350 in YouTube red. Extract it into:
+
+```
+%AppData%\Macro Deck\iconpacks\Goonsly.YoutubeIcons\
+```
+
+Restart Macro Deck. The icons appear under **Youtube Icons** in the icon
+selector. They are cosmetic; any icon pack works just as well.
+
 ## 7. Build a button
 
 In Macro Deck's button editor:

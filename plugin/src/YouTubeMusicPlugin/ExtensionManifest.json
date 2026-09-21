@@ -3,7 +3,7 @@
   "name": "YouTube Music",
   "author": "Keystone Digital",
   "packageId": "KeystoneDigital.YouTubeMusic",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "target-plugin-api-version": 41,
   "target-macro-deck-version": "2.15.0",
   "repository": "https://github.com/Goonsly/MacroDeck-YouTubeMusic",
