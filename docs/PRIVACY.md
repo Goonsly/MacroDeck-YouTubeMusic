@@ -1,6 +1,6 @@
 # Privacy policy
 
-**YouTube Music for Macro Deck**
+**Youtube Music Controller for Macro Deck**
 
 Last updated: 2026-09-20
 

@@ -36,6 +36,14 @@ public class YouTubeMusicPlugin : MacroDeckPlugin
             new PauseAction(),
             new NextAction(),
             new PreviousAction(),
+            new ShuffleAction(),
+            new RepeatAction(),
+            new RepeatOffAction(),
+            new RepeatAllAction(),
+            new RepeatOneAction(),
+            new VolumeUpAction(),
+            new VolumeDownAction(),
+            new MuteAction(),
         };
 
         _settings = new PluginSettings(this);
@@ -79,9 +87,9 @@ public class YouTubeMusicPlugin : MacroDeckPlugin
         _variables?.Clear();
     }
 
-    private void OnStateReceived(bool connected, bool playing)
+    private void OnStateReceived(PlayerState state)
     {
-        _variables?.Set(connected, playing);
+        _variables?.Set(state);
     }
 
     private void OnClientLost()

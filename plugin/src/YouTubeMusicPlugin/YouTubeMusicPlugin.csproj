@@ -9,9 +9,9 @@
 
     <AssemblyName>YouTubeMusicPlugin</AssemblyName>
     <RootNamespace>KeystoneDigital.YouTubeMusic</RootNamespace>
-    <Version>1.0.1</Version>
+    <Version>1.1.0</Version>
     <Authors>Keystone Digital</Authors>
-    <Product>YouTube Music for Macro Deck</Product>
+    <Product>Youtube Music Controller for Macro Deck</Product>
 
     <!-- Produces a deps.json and copies NuGet dependencies (Fleck) next to the
          plugin, which is how Macro Deck's plugin loader finds them. -->

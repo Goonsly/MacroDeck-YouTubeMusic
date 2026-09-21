@@ -27,13 +27,13 @@ internal static class Program
         var plugin = new StubPlugin();
         using var server = new YtmServer(plugin);
 
-        (bool connected, bool playing)? lastState = null;
+        PlayerState? lastState = null;
         var stateSignal = new SemaphoreSlim(0);
         var lostSignal = new SemaphoreSlim(0);
 
-        server.StateReceived += (connected, playing) =>
+        server.StateReceived += state =>
         {
-            lastState = (connected, playing);
+            lastState = state;
             stateSignal.Release();
         };
 
@@ -50,7 +50,7 @@ internal static class Program
                 .Where(type => typeof(PluginAction).IsAssignableFrom(type) && !type.IsAbstract)
                 .ToList();
 
-            Check(actionTypes.Count == 5, $"five action types found, got {actionTypes.Count}");
+            Check(actionTypes.Count == 13, $"thirteen action types found, got {actionTypes.Count}");
 
             foreach (var type in actionTypes)
             {
@@ -62,7 +62,7 @@ internal static class Program
 
         await RunAsync("a burst of state changes collapses into one write", async () =>
         {
-            var writes = new List<(string Name, bool Value)>();
+            var writes = new List<(string Name, object Value)>();
             using var sync = new VariableSync(
                 plugin,
                 TimeSpan.FromMilliseconds(80),
@@ -70,28 +70,60 @@ internal static class Program
 
             // A track change looks like this: playing, paused, playing again,
             // all within a few milliseconds.
-            sync.Set(connected: true, playing: true);
-            sync.Set(connected: true, playing: false);
-            sync.Set(connected: true, playing: true);
-            sync.Set(connected: true, playing: false);
+            sync.Set(Playing(true));
+            sync.Set(Playing(false));
+            sync.Set(Playing(true));
+            sync.Set(Playing(false));
 
             await Task.Delay(400);
 
             lock (writes)
             {
-                Check(writes.Count == 2, $"two writes for four changes, got {writes.Count}");
+                // connected, playing, muted, volume, shuffle, repeat — written
+                // once each, not once per change.
+                Check(writes.Count == 6, $"six writes for four changes, got {writes.Count}");
                 Check(
-                    writes.Any(w => w.Name == "youtube_music_connected" && w.Value),
+                    writes.Any(w => w.Name == "youtube_music_connected" && (bool)w.Value),
                     "connected written as true");
                 Check(
-                    writes.Any(w => w.Name == "youtube_music_playing" && !w.Value),
+                    writes.Any(w => w.Name == "youtube_music_playing" && !(bool)w.Value),
                     "playing written as the final value, false");
+                Check(
+                    writes.Any(w => w.Name == "youtube_music_volume" && (int)w.Value == 40),
+                    "volume written as 40");
+                Check(
+                    writes.Any(w => w.Name == "youtube_music_repeat" && (string)w.Value == "all"),
+                    "repeat written as 'all'");
+            }
+        });
+
+        await RunAsync("unreadable values leave their variables alone", async () =>
+        {
+            var writes = new List<(string Name, object Value)>();
+            using var sync = new VariableSync(
+                plugin,
+                TimeSpan.FromMilliseconds(40),
+                (name, value) => { lock (writes) writes.Add((name, value)); });
+
+            // Volume, shuffle and repeat unreadable: a YouTube Music redesign
+            // must not overwrite a good value with a misleading one.
+            sync.Set(new PlayerState(true, true, null, false, null, null));
+            await Task.Delay(250);
+
+            lock (writes)
+            {
+                Check(
+                    writes.All(w => w.Name is not ("youtube_music_volume" or "youtube_music_shuffle" or "youtube_music_repeat")),
+                    "no write for volume, shuffle or repeat");
+                Check(
+                    writes.Any(w => w.Name == "youtube_music_playing"),
+                    "playing still written");
             }
         });
 
         await RunAsync("disconnection is written immediately", async () =>
         {
-            var writes = new List<(string Name, bool Value)>();
+            var writes = new List<(string Name, object Value)>();
             using var sync = new VariableSync(
                 plugin,
                 TimeSpan.FromMilliseconds(5000),
@@ -102,8 +134,8 @@ internal static class Program
             // No delay: losing the browser must not wait out the debounce.
             lock (writes)
             {
-                Check(writes.Count == 2, $"both variables written at once, got {writes.Count}");
-                Check(writes.All(w => !w.Value), "both written as false");
+                Check(writes.Count == 3, $"connected, playing and muted written at once, got {writes.Count}");
+                Check(writes.All(w => w.Value is bool and false), "all written as false");
             }
 
             await Task.CompletedTask;
@@ -140,20 +172,61 @@ internal static class Program
             await AuthenticateAsync(client!);
 
             lastState = null;
-            await SendAsync(client!, new { type = "state", connected = true, playing = true });
+            await SendAsync(client!, new
+            {
+                type = "state",
+                connected = true,
+                playing = true,
+                volume = 65,
+                muted = false,
+                shuffle = true,
+                repeat = "one",
+            });
             Check(await stateSignal.WaitAsync(2000), "state event raised");
-            Check(lastState == (true, true), $"state is connected+playing, got {Describe(lastState)}");
+            Check(
+                lastState == new PlayerState(true, true, 65, false, true, "one"),
+                $"every field arrived, got {Describe(lastState)}");
         });
 
-        await RunAsync("playing cannot be true while disconnected", async () =>
+        await RunAsync("an out-of-range volume and an unknown repeat mode are dropped", async () =>
         {
             using var client = await OpenAsync(GoodOrigin);
             await AuthenticateAsync(client!);
 
             lastState = null;
-            await SendAsync(client!, new { type = "state", connected = false, playing = true });
+            await SendAsync(client!, new
+            {
+                type = "state",
+                connected = true,
+                playing = true,
+                volume = 250,
+                repeat = "sideways",
+            });
             Check(await stateSignal.WaitAsync(2000), "state event raised");
-            Check(lastState == (false, false), $"playing coerced to false, got {Describe(lastState)}");
+            Check(lastState?.Volume is null, $"volume rejected, got {Describe(lastState)}");
+            Check(lastState?.Repeat is null, "unknown repeat mode rejected");
+        });
+
+        await RunAsync("nothing survives a disconnected report", async () =>
+        {
+            using var client = await OpenAsync(GoodOrigin);
+            await AuthenticateAsync(client!);
+
+            lastState = null;
+            await SendAsync(client!, new
+            {
+                type = "state",
+                connected = false,
+                playing = true,
+                volume = 80,
+                muted = true,
+                shuffle = true,
+                repeat = "all",
+            });
+            Check(await stateSignal.WaitAsync(2000), "state event raised");
+            Check(
+                lastState == PlayerState.Disconnected,
+                $"everything coerced to disconnected, got {Describe(lastState)}");
         });
 
         await RunAsync("commands reach the browser", async () =>
@@ -205,8 +278,14 @@ internal static class Program
 
     /* ------------------------------------------------------------- helpers */
 
-    private static string Describe((bool connected, bool playing)? state) =>
-        state is null ? "no state" : $"connected={state.Value.connected} playing={state.Value.playing}";
+    /// <summary>A connected player at a fixed volume, playing or not.</summary>
+    private static PlayerState Playing(bool playing) =>
+        new(Connected: true, Playing: playing, Volume: 40, Muted: false, Shuffle: true, Repeat: "all");
+
+    private static string Describe(PlayerState? state) =>
+        state is null
+            ? "no state"
+            : $"connected={state.Value.Connected} playing={state.Value.Playing} volume={state.Value.Volume?.ToString() ?? "null"} muted={state.Value.Muted} shuffle={state.Value.Shuffle?.ToString() ?? "null"} repeat={state.Value.Repeat ?? "null"}";
 
     private static async Task RunAsync(string name, Func<Task> body)
     {

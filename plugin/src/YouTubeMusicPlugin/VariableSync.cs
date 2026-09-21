@@ -1,3 +1,4 @@
+using KeystoneDigital.YouTubeMusic.Server;
 using SuchByte.MacroDeck.Logging;
 using SuchByte.MacroDeck.Plugins;
 using SuchByte.MacroDeck.Variables;
@@ -15,6 +16,17 @@ internal sealed class VariableSync : IDisposable
 {
     public const string ConnectedVariable = "youtube_music_connected";
     public const string PlayingVariable = "youtube_music_playing";
+    public const string VolumeVariable = "youtube_music_volume";
+    public const string MutedVariable = "youtube_music_muted";
+    public const string ShuffleVariable = "youtube_music_shuffle";
+    public const string RepeatVariable = "youtube_music_repeat";
+
+    /// <summary>Every variable this plugin owns, for logging on startup.</summary>
+    public static readonly string[] AllVariables =
+    {
+        ConnectedVariable, PlayingVariable, VolumeVariable,
+        MutedVariable, ShuffleVariable, RepeatVariable,
+    };
 
     /// <summary>
     /// How long to wait before writing a change, so a burst collapses into one
@@ -26,18 +38,17 @@ internal sealed class VariableSync : IDisposable
     private readonly MacroDeckPlugin _plugin;
     private readonly object _gate = new();
     private readonly TimeSpan _debounce;
-    private readonly Action<string, bool> _write;
+    private readonly Action<string, object> _write;
     private readonly System.Threading.Timer _timer;
 
-    private bool _pendingConnected;
-    private bool _pendingPlaying;
+    private PlayerState _pending = PlayerState.Disconnected;
     private bool _flushScheduled;
     private bool _forceNextFlush;
 
     private static bool _noMacroDeckHost;
 
-    private bool? _lastWrittenConnected;
-    private bool? _lastWrittenPlaying;
+    /// <summary>What was last written, per variable name.</summary>
+    private readonly Dictionary<string, object> _lastWritten = new(StringComparer.Ordinal);
 
     public VariableSync(MacroDeckPlugin plugin)
         : this(plugin, DefaultDebounce, null)
@@ -48,7 +59,7 @@ internal sealed class VariableSync : IDisposable
     /// Injected by the tests so that debouncing can be exercised without Macro
     /// Deck. Production passes null and writes through <see cref="VariableManager"/>.
     /// </param>
-    internal VariableSync(MacroDeckPlugin plugin, TimeSpan debounce, Action<string, bool>? write)
+    internal VariableSync(MacroDeckPlugin plugin, TimeSpan debounce, Action<string, object>? write)
     {
         _plugin = plugin;
         _debounce = debounce;
@@ -62,7 +73,7 @@ internal sealed class VariableSync : IDisposable
     /// </summary>
     public void Initialize()
     {
-        foreach (var name in new[] { ConnectedVariable, PlayingVariable })
+        foreach (var name in AllVariables)
         {
             var existing = VariableManager.Variables
                 .FirstOrDefault(variable => string.Equals(variable.Name, name, StringComparison.OrdinalIgnoreCase));
@@ -82,20 +93,19 @@ internal sealed class VariableSync : IDisposable
         }
 
         // Until a browser reports in, nothing is connected and nothing is playing.
-        Set(connected: false, playing: false, force: true);
+        Set(PlayerState.Disconnected, force: true);
     }
 
-    public void Set(bool connected, bool playing) => Set(connected, playing, force: false);
+    public void Set(PlayerState state) => Set(state, force: false);
 
     /// <summary>Called when the browser disappears for any reason.</summary>
-    public void Clear() => Set(connected: false, playing: false, force: true);
+    public void Clear() => Set(PlayerState.Disconnected, force: true);
 
-    private void Set(bool connected, bool playing, bool force)
+    private void Set(PlayerState state, bool force)
     {
         lock (_gate)
         {
-            _pendingConnected = connected;
-            _pendingPlaying = playing;
+            _pending = state;
             _forceNextFlush |= force;
 
             if (!force)
@@ -124,49 +134,72 @@ internal sealed class VariableSync : IDisposable
 
     private void Flush()
     {
-        bool connected;
-        bool playing;
-        bool writeConnected;
-        bool writePlaying;
+        PlayerState state;
+        bool force;
 
         lock (_gate)
         {
             _flushScheduled = false;
-            connected = _pendingConnected;
-            playing = _pendingPlaying;
-
-            var force = _forceNextFlush;
+            state = _pending;
+            force = _forceNextFlush;
             _forceNextFlush = false;
+        }
 
-            // Only write what actually moved. Every write makes Macro Deck
-            // repaint the buttons bound to that variable, and a repaint we do
-            // not need is a repaint that can go wrong.
-            writeConnected = force || _lastWrittenConnected != connected;
-            writePlaying = force || _lastWrittenPlaying != playing;
+        var writes = new List<(string Name, object Value)>();
 
-            if (!writeConnected && !writePlaying)
-            {
-                return;
-            }
+        Stage(writes, ConnectedVariable, state.Connected, force);
+        Stage(writes, PlayingVariable, state.Playing, force);
+        Stage(writes, MutedVariable, state.Muted, force);
 
-            _lastWrittenConnected = connected;
-            _lastWrittenPlaying = playing;
+        // A null means the browser could not read that value. Leave the previous
+        // value in place rather than writing a lie: a stale volume reading is
+        // less misleading than a sudden 0.
+        if (state.Volume is { } volume) Stage(writes, VolumeVariable, volume, force);
+        if (state.Shuffle is { } shuffle) Stage(writes, ShuffleVariable, shuffle, force);
+        if (state.Repeat is { } repeat) Stage(writes, RepeatVariable, repeat, force);
+
+        if (writes.Count == 0)
+        {
+            return;
         }
 
         OnUiThread(() =>
         {
-            if (writeConnected)
+            foreach (var (name, value) in writes)
             {
-                _write(ConnectedVariable, connected);
-            }
-
-            if (writePlaying)
-            {
-                _write(PlayingVariable, playing);
+                _write(name, value);
             }
         });
 
-        MacroDeckLogger.Verbose(_plugin, "State: connected={0} playing={1}", connected, playing);
+        MacroDeckLogger.Verbose(
+            _plugin,
+            "State: connected={0} playing={1} volume={2} muted={3} shuffle={4} repeat={5}",
+            state.Connected,
+            state.Playing,
+            state.Volume?.ToString() ?? "unknown",
+            state.Muted,
+            state.Shuffle?.ToString() ?? "unknown",
+            state.Repeat ?? "unknown");
+    }
+
+    /// <summary>
+    /// Queues a write only when the value actually moved. Every write makes
+    /// Macro Deck repaint the buttons bound to that variable, and a repaint we
+    /// do not need is a repaint that can go wrong.
+    /// </summary>
+    private void Stage(List<(string Name, object Value)> writes, string name, object value, bool force)
+    {
+        lock (_gate)
+        {
+            if (!force && _lastWritten.TryGetValue(name, out var previous) && previous.Equals(value))
+            {
+                return;
+            }
+
+            _lastWritten[name] = value;
+        }
+
+        writes.Add((name, value));
     }
 
     public void Dispose() => _timer.Dispose();
@@ -223,11 +256,18 @@ internal sealed class VariableSync : IDisposable
         }
     }
 
-    private void Write(string name, bool value)
+    private void Write(string name, object value)
     {
+        var type = value switch
+        {
+            bool => VariableType.Bool,
+            int => VariableType.Integer,
+            _ => VariableType.String,
+        };
+
         try
         {
-            VariableManager.SetValue(name, value, VariableType.Bool, _plugin, Array.Empty<string>());
+            VariableManager.SetValue(name, value, type, _plugin, Array.Empty<string>());
         }
         catch (Exception exception)
         {

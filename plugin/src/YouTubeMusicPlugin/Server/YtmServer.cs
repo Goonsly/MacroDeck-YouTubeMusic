@@ -41,8 +41,8 @@ internal sealed class YtmServer : IDisposable
         _plugin = plugin;
     }
 
-    /// <summary>Raised with (connected, playing) whenever the browser reports state.</summary>
-    public event Action<bool, bool>? StateReceived;
+    /// <summary>Raised whenever the browser reports state.</summary>
+    public event Action<PlayerState>? StateReceived;
 
     /// <summary>Raised when the authenticated client goes away.</summary>
     public event Action? ClientLost;
@@ -280,11 +280,25 @@ internal sealed class YtmServer : IDisposable
 
         var connected = message.Connected ?? false;
 
-        // A disconnected browser cannot be playing. Guard here so a malformed
-        // frame can never leave a stale 'playing' on a Macro Deck button.
-        var playing = connected && (message.Playing ?? false);
+        if (!connected)
+        {
+            // A disconnected browser cannot be playing, muted or shuffling.
+            // Guard here so a malformed frame can never leave stale state on a
+            // Macro Deck button.
+            StateReceived?.Invoke(PlayerState.Disconnected);
+            return;
+        }
 
-        StateReceived?.Invoke(connected, playing);
+        var volume = message.Volume is >= 0 and <= 100 ? message.Volume : null;
+        var repeat = message.Repeat is "off" or "all" or "one" ? message.Repeat : null;
+
+        StateReceived?.Invoke(new PlayerState(
+            Connected: true,
+            Playing: message.Playing ?? false,
+            Volume: volume,
+            Muted: message.Muted ?? false,
+            Shuffle: message.Shuffle,
+            Repeat: repeat));
     }
 
     private void OnClose(IWebSocketConnection socket)

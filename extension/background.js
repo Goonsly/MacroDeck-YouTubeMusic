@@ -52,17 +52,32 @@ function authoritativeTabId() {
   return best;
 }
 
+const STATE_KEYS = ['connected', 'playing', 'volume', 'muted', 'shuffle', 'repeat'];
+
 function currentState() {
   const tabId = authoritativeTabId();
-  const connected = tabs.size > 0;
-  const playing = connected && tabId !== null ? tabs.get(tabId).playing === true : false;
-  return { connected, playing };
+
+  if (tabs.size === 0 || tabId === null) {
+    // Nothing is observing a player, so report nothing about one.
+    return { connected: false, playing: false, volume: null, muted: false, shuffle: null, repeat: null };
+  }
+
+  const tab = tabs.get(tabId);
+  return {
+    connected: true,
+    playing: tab.playing === true,
+    // null means "could not be read", which the plugin leaves alone rather
+    // than writing a misleading value.
+    volume: typeof tab.volume === 'number' ? tab.volume : null,
+    muted: tab.muted === true,
+    shuffle: typeof tab.shuffle === 'boolean' ? tab.shuffle : null,
+    repeat: typeof tab.repeat === 'string' ? tab.repeat : null,
+  };
 }
 
 function stateChanged(state) {
-  return !lastSentState ||
-    lastSentState.connected !== state.connected ||
-    lastSentState.playing !== state.playing;
+  if (!lastSentState) return true;
+  return STATE_KEYS.some((key) => lastSentState[key] !== state[key]);
 }
 
 function pushState(force = false) {
@@ -72,7 +87,7 @@ function pushState(force = false) {
   if (!force && !stateChanged(state)) return;
 
   lastSentState = state;
-  send({ type: 'state', connected: state.connected, playing: state.playing });
+  send({ type: 'state', ...state });
 }
 
 /* ------------------------------------------------------------ connection */
@@ -238,6 +253,10 @@ chrome.runtime.onMessage.addListener((message, sender) => {
   const existing = tabs.get(tabId);
   tabs.set(tabId, {
     playing: message.playing === true,
+    volume: message.volume,
+    muted: message.muted === true,
+    shuffle: message.shuffle,
+    repeat: message.repeat,
     lastActive: existing ? existing.lastActive : Date.now(),
   });
 

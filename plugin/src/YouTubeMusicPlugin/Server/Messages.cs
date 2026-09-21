@@ -42,6 +42,37 @@ internal sealed class IncomingMessage
 
     [JsonPropertyName("playing")]
     public bool? Playing { get; set; }
+
+    /// <summary>0-100, or null when the browser could not read it.</summary>
+    [JsonPropertyName("volume")]
+    public int? Volume { get; set; }
+
+    [JsonPropertyName("muted")]
+    public bool? Muted { get; set; }
+
+    /// <summary>Null when the page's shuffle control could not be read.</summary>
+    [JsonPropertyName("shuffle")]
+    public bool? Shuffle { get; set; }
+
+    /// <summary>"off", "all", "one", or null when it could not be read.</summary>
+    [JsonPropertyName("repeat")]
+    public string? Repeat { get; set; }
+}
+
+/// <summary>
+/// One snapshot of what the browser reports. A null means the browser could not
+/// read that value; the plugin leaves the matching variable alone rather than
+/// writing something misleading.
+/// </summary>
+internal readonly record struct PlayerState(
+    bool Connected,
+    bool Playing,
+    int? Volume,
+    bool Muted,
+    bool? Shuffle,
+    string? Repeat)
+{
+    public static PlayerState Disconnected => new(false, false, null, false, null, null);
 }
 
 internal static class Json

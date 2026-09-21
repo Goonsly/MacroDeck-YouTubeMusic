@@ -1,4 +1,4 @@
-# YouTube Music for Macro Deck
+# Youtube Music Controller for Macro Deck
 
 Control YouTube Music in Chrome from a Macro Deck 2 button, with Macro Deck
 variables that follow the browser's real playback state.
@@ -28,10 +28,27 @@ the variable only changes once the page reports that playback actually started.
 | --- | --- | --- |
 | `youtube_music_connected` | Bool | A YouTube Music tab is open and reporting |
 | `youtube_music_playing` | Bool | The player is playing right now |
+| `youtube_music_volume` | Integer | Player volume, 0–100 |
+| `youtube_music_muted` | Bool | Player is muted |
+| `youtube_music_shuffle` | Bool | Shuffle is on |
+| `youtube_music_repeat` | String | `off`, `all` or `one` |
+
+Volume and mute come from the media element and are reliable. Shuffle and repeat
+are read from YouTube Music's own controls, so a redesign there stops those two
+updating while everything else keeps working.
 
 ## Actions
 
-Under **YouTube Music**: Play / Pause, Play, Pause, Next, Previous.
+Under **Youtube Music Controller**:
+
+| Group | Actions |
+| --- | --- |
+| Playback | Play / Pause, Play, Pause, Next, Previous |
+| Queue | Shuffle, Repeat (cycles off → all → one), Repeat Off, Repeat All, Repeat One |
+| Sound | Volume Up, Volume Down, Mute |
+
+Volume steps 5% per press. Mute affects YouTube Music only, not the rest of
+Windows.
 
 ## Install
 

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "YouTube Music for Macro Deck",
-  "version": "1.0.0",
-  "description": "Controls YouTube Music from Macro Deck and keeps Macro Deck variables in sync with the real player state.",
+  "name": "Youtube Music Controller for Macro Deck",
+  "version": "1.1.0",
+  "description": "Control YouTube Music from Macro Deck: play, skip, shuffle, repeat, volume and mute, with variables that follow the real player.",
   "minimum_chrome_version": "116",
   "permissions": [
     "storage",

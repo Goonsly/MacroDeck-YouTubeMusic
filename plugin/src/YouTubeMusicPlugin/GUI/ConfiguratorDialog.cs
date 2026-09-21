@@ -25,7 +25,7 @@ internal sealed class ConfiguratorDialog : DialogForm
     {
         _plugin = plugin;
 
-        Text = "YouTube Music";
+        Text = "Youtube Music Controller";
         ClientSize = new Size(580, 470);
         StartPosition = FormStartPosition.CenterParent;
         FormBorderStyle = FormBorderStyle.FixedDialog;

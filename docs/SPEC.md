@@ -15,16 +15,25 @@ controls, and it does not touch ordinary `youtube.com`.
 
 ## 2. Scope
 
-V1 delivers phases 1, 2, 3 and 5 of the original build plan:
+V1 delivered phases 1, 2, 3 and 5 of the original build plan:
 
 - connection and detection
 - playback controls (play, pause, play/pause, next, previous)
 - state synchronisation in both directions
 - reliability under refresh, restart and tab churn
 
-Track metadata (title, artist, album, position, duration) is **out of scope for
-V1**. It is specified as a follow-up in section 12 so that V1 does not carry the
-fragility of DOM scraping before the control path is proven.
+All of it passed acceptance testing on 2026-09-20.
+
+**V1.1 adds** shuffle, repeat and sound, once the control path had been proven:
+
+- shuffle toggle
+- repeat: a cycle action plus three explicit modes
+- volume up, volume down, mute
+- four new variables: volume, muted, shuffle, repeat
+
+Track metadata (title, artist, album, position, duration) remains **out of
+scope**, for the same reason as before: it is the most DOM-dependent part and
+buys the least. Section 12 keeps the design for it.
 
 ## 3. Components
 
@@ -143,12 +152,25 @@ to start, the variable correctly stays `false`.
 
 ### 7.2 Macro Deck variables
 
-V1 creates and maintains two:
+Six, in two tiers of reliability:
 
-| Variable | Type | Meaning |
-| --- | --- | --- |
-| `youtube_music_connected` | Bool | A YouTube Music tab is present and reporting |
-| `youtube_music_playing` | Bool | The player is actually playing right now |
+| Variable | Type | Meaning | Source |
+| --- | --- | --- | --- |
+| `youtube_music_connected` | Bool | A YouTube Music tab is present and reporting | the extension itself |
+| `youtube_music_playing` | Bool | The player is actually playing right now | media element |
+| `youtube_music_volume` | Integer | Player volume, 0–100 | media element |
+| `youtube_music_muted` | Bool | Player is muted | media element |
+| `youtube_music_shuffle` | Bool | Shuffle is on | player controls |
+| `youtube_music_repeat` | String | `off`, `all` or `one` | player controls |
+
+The first four come from the media element and the extension's own bookkeeping,
+so they are as reliable as the connection. The last two are read from YouTube
+Music's markup and are the ones a redesign can break.
+
+**A value that cannot be read is not written.** The extension sends null, and the
+plugin leaves that variable at its last value rather than writing a misleading
+one — a stale volume reading beats a sudden `0`, and a stale shuffle state beats
+a false `off`.
 
 `youtube_music_connected` is `true` only when an authenticated extension is
 connected **and** it reports at least one YouTube Music tab. An extension
@@ -174,10 +196,13 @@ extension reports no tab, the plugin sets:
 ```
 youtube_music_connected = false
 youtube_music_playing   = false
+youtube_music_muted     = false
 ```
 
-Playing is forced false because an unobserved player must not leave a stale
-`true` on a Macro Deck button.
+These three are forced, because an unobserved player must not leave a stale
+`true` on a Macro Deck button. Volume, shuffle and repeat keep their last values:
+they describe settings rather than activity, and blanking them would be inventing
+a state nobody reported.
 
 ## 8. Tab selection
 
@@ -190,7 +215,7 @@ tabs whose content script has reported in, and selects one authoritative tab:
 
 Commands are sent **only** to the authoritative tab. They are never broadcast.
 
-## 9. Playback control
+## 9. Player control
 
 | Command | Implementation |
 | --- | --- |
@@ -199,12 +224,28 @@ Commands are sent **only** to the authoritative tab. They are never broadcast.
 | `play_pause` | Branch on the current media state |
 | `next` | Click the player's next-track control |
 | `previous` | Click the player's previous-track control |
+| `volume_up` / `volume_down` | `video.volume` ± 0.05, clamped to 0–1 |
+| `mute` | Toggle `video.muted` |
+| `shuffle` | Click the player's shuffle control |
+| `repeat` | Click the player's repeat control once |
+| `repeat_off` / `repeat_all` / `repeat_one` | Read the mode, then click until it matches |
 
-Play and pause act on the media element directly because that is the most
-reliable path and is immune to UI markup changes. Next and previous have no
-media-element equivalent and must act on the player controls; those selectors are
-isolated in one module (`extension/player.js`) so that a YouTube Music redesign
-touches exactly one file.
+Anything the media element can do, it does: play, pause, volume and mute are
+immune to markup changes. Raising the volume on a muted player unmutes it, which
+is what every other media control does.
+
+The rest must act on YouTube Music's own controls, and those selectors are
+isolated in one module (`extension/player.js`) so a redesign touches exactly one
+file.
+
+The explicit repeat modes need to know where they are starting, so they read the
+mode first and click at most twice — the cycle is three long. If the mode cannot
+be read they do nothing and log it, rather than clicking blindly and landing
+somewhere random. The plain `repeat` cycle action needs no such knowledge and
+keeps working regardless.
+
+Mute applies to the YouTube Music tab only. It does not touch the Windows
+mixer, so it cannot silence anything else the user is doing.
 
 Controls must work while Chrome is minimised, unfocused or behind another
 window. Nothing in this design depends on focus.
@@ -250,7 +291,21 @@ V1 is complete when all of these pass by manual test:
 - No dependence on Windows global media controls.
 - A connection presenting a wrong token or an unlisted origin is refused.
 
-## 12. Deferred to V2
+### 11.1 V1.1 additions
+
+- Shuffle toggles, and `youtube_music_shuffle` follows it.
+- Repeat cycles off → all → one, and `youtube_music_repeat` follows it.
+- Repeat Off, Repeat All and Repeat One each land on their mode from any
+  starting point.
+- Volume Up and Volume Down move `youtube_music_volume` by 5 per press and stop
+  at 0 and 100.
+- Mute toggles `youtube_music_muted` and silences YouTube Music only.
+- Raising the volume while muted unmutes.
+- Changing shuffle, repeat or volume inside YouTube Music updates Macro Deck
+  within about two seconds.
+- If shuffle or repeat cannot be read, playback, volume and mute keep working.
+
+## 12. Deferred
 
 Track metadata: `youtube_music_title`, `youtube_music_artist`,
 `youtube_music_album`, `youtube_music_position`, `youtube_music_duration`.
@@ -261,7 +316,7 @@ from the player DOM, or from a script injected into the main world. The original
 plan's ordering — Media Session first — is not implementable from a content
 script and is corrected here.
 
-Also deferred: shuffle, repeat, like and dislike actions.
+Also still deferred: like and dislike. Shuffle and repeat shipped in V1.1.
 
 ## 13. Distribution
 

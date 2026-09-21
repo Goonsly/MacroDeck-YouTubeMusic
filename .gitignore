@@ -11,3 +11,11 @@ artifacts/
 # OS
 Thumbs.db
 desktop.ini
+
+# Local working copy of the icon pack repository, published separately
+# because the Macro Deck store adds submissions as git submodules.
+iconpack-repo/
+
+# Raw screenshots and their source file
+Screenshot*.png
+Screenshots.psd

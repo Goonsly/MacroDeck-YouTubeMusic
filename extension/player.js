@@ -1,16 +1,23 @@
 /*
  * Everything that knows about YouTube Music's page structure lives here.
  *
- * Play and pause act on the media element, which is stable. Next and previous
- * have no media-element equivalent and must click the player controls, so those
- * selectors are the only fragile part of the extension. When YouTube Music
- * changes its markup, this file is the only one that needs editing.
+ * Playback, volume and mute act on the media element, which is stable. Shuffle
+ * and repeat have no media-element equivalent and must read and click the
+ * player controls, so those selectors are the only fragile part of the
+ * extension. When YouTube Music changes its markup, this file is the only one
+ * that needs editing — and playback, volume and mute keep working even when the
+ * fragile parts go stale.
  *
  * Loaded as a plain content script, so it publishes one global into the
  * isolated world rather than exporting a module.
  */
 
 const YTMPlayer = (() => {
+  const LOG = '[MacroDeck YTM]';
+
+  // How much one Volume Up or Volume Down press moves the volume.
+  const VOLUME_STEP = 0.05;
+
   // Ordered by preference. The first selector that matches a visible element wins.
   const NEXT_SELECTORS = [
     'ytmusic-player-bar tp-yt-paper-icon-button.next-button',
@@ -23,6 +30,23 @@ const YTMPlayer = (() => {
     'ytmusic-player-bar .previous-button',
     '.ytmusic-player-bar .previous-button',
   ];
+
+  const SHUFFLE_SELECTORS = [
+    'ytmusic-player-bar tp-yt-paper-icon-button.shuffle',
+    'ytmusic-player-bar .shuffle',
+    '.ytmusic-player-bar .shuffle',
+  ];
+
+  const REPEAT_SELECTORS = [
+    'ytmusic-player-bar tp-yt-paper-icon-button.repeat',
+    'ytmusic-player-bar .repeat',
+    '.ytmusic-player-bar .repeat',
+  ];
+
+  const PLAYER_BAR_SELECTORS = ['ytmusic-player-bar', '.ytmusic-player-bar'];
+
+  /** The three repeat modes YouTube Music cycles through, in cycle order. */
+  const REPEAT_MODES = ['off', 'all', 'one'];
 
   /** The page's single media element, or null while the player is still loading. */
   function media() {
@@ -55,6 +79,18 @@ const YTMPlayer = (() => {
     return null;
   }
 
+  function clickControl(selectors, what) {
+    const button = firstMatch(selectors);
+    if (!button) {
+      console.warn(LOG, `${what} control not found`);
+      return false;
+    }
+    button.click();
+    return true;
+  }
+
+  /* ----------------------------------------------------------- playback */
+
   async function play() {
     const video = media();
     if (!video) return false;
@@ -62,7 +98,7 @@ const YTMPlayer = (() => {
       await video.play();
       return true;
     } catch (error) {
-      console.warn('[MacroDeck YTM] play() rejected', error);
+      console.warn(LOG, 'play() rejected', error);
       return false;
     }
   }
@@ -78,25 +114,141 @@ const YTMPlayer = (() => {
     return isPlaying() ? pause() : play();
   }
 
-  function next() {
-    const button = firstMatch(NEXT_SELECTORS);
-    if (!button) {
-      console.warn('[MacroDeck YTM] next control not found');
-      return false;
-    }
-    button.click();
+  const next = () => clickControl(NEXT_SELECTORS, 'next');
+  const previous = () => clickControl(PREVIOUS_SELECTORS, 'previous');
+
+  /* ------------------------------------------------------- volume, mute */
+
+  /** Volume as 0-100, or null when there is no player yet. */
+  function volume() {
+    const video = media();
+    if (!video) return null;
+    return Math.round(video.volume * 100);
+  }
+
+  function isMuted() {
+    const video = media();
+    return video ? video.muted === true : false;
+  }
+
+  function setVolume(fraction) {
+    const video = media();
+    if (!video) return false;
+
+    video.volume = Math.min(1, Math.max(0, fraction));
+
+    // Raising the volume on a muted player should be audible, which is what
+    // every other media control does.
+    if (video.volume > 0 && video.muted) video.muted = false;
+
     return true;
   }
 
-  function previous() {
-    const button = firstMatch(PREVIOUS_SELECTORS);
-    if (!button) {
-      console.warn('[MacroDeck YTM] previous control not found');
-      return false;
-    }
-    button.click();
+  function volumeUp() {
+    const video = media();
+    return video ? setVolume(video.volume + VOLUME_STEP) : false;
+  }
+
+  function volumeDown() {
+    const video = media();
+    return video ? setVolume(video.volume - VOLUME_STEP) : false;
+  }
+
+  function muteToggle() {
+    const video = media();
+    if (!video) return false;
+    video.muted = !video.muted;
     return true;
   }
 
-  return { media, isPlaying, play, pause, playPause, next, previous };
+  /* ---------------------------------------------------- shuffle, repeat */
+
+  /** True when shuffle is on, false when off, null when it cannot be read. */
+  function shuffleState() {
+    const button = firstMatch(SHUFFLE_SELECTORS);
+    if (!button) return null;
+
+    const pressed = button.getAttribute('aria-pressed');
+    if (pressed === 'true') return true;
+    if (pressed === 'false') return false;
+
+    // Some builds mark the active state with a class or attribute instead.
+    if (button.classList.contains('active') || button.hasAttribute('active')) return true;
+
+    return null;
+  }
+
+  const shuffle = () => clickControl(SHUFFLE_SELECTORS, 'shuffle');
+
+  /** 'off', 'all', 'one', or null when the mode cannot be read. */
+  function repeatState() {
+    for (const selector of PLAYER_BAR_SELECTORS) {
+      const bar = document.querySelector(selector);
+      if (!bar) continue;
+
+      // The player bar carries the mode directly; this is the reliable source.
+      const attribute = bar.getAttribute('repeat-mode_') || bar.getAttribute('repeat-mode');
+      if (attribute) {
+        const mode = attribute.toUpperCase();
+        if (mode.includes('NONE') || mode.includes('OFF')) return 'off';
+        if (mode.includes('ALL')) return 'all';
+        if (mode.includes('ONE')) return 'one';
+      }
+    }
+
+    // Fall back to the button's own label, which names the mode it switches to
+    // next rather than the current one, so read it one step back round the cycle.
+    const button = firstMatch(REPEAT_SELECTORS);
+    const label = (button?.getAttribute('title') || button?.getAttribute('aria-label') || '').toLowerCase();
+    if (label.includes('repeat one')) return 'all';
+    if (label.includes('repeat all')) return 'off';
+    if (label.includes('repeat off') || label.includes('no repeat')) return 'one';
+
+    return null;
+  }
+
+  const repeatCycle = () => clickControl(REPEAT_SELECTORS, 'repeat');
+
+  /**
+   * Clicks repeat until the requested mode is reached. The cycle is three long,
+   * so two clicks always suffice; the loop stops as soon as the mode matches.
+   */
+  function setRepeat(target) {
+    if (!REPEAT_MODES.includes(target)) return false;
+
+    const current = repeatState();
+    if (current === null) {
+      // Without a readable mode there is no way to know when to stop clicking.
+      console.warn(LOG, `cannot set repeat to '${target}': current mode unreadable`);
+      return false;
+    }
+
+    let mode = current;
+    for (let clicks = 0; clicks < REPEAT_MODES.length && mode !== target; clicks++) {
+      if (!repeatCycle()) return false;
+      mode = REPEAT_MODES[(REPEAT_MODES.indexOf(mode) + 1) % REPEAT_MODES.length];
+    }
+
+    return true;
+  }
+
+  return {
+    media,
+    isPlaying,
+    play,
+    pause,
+    playPause,
+    next,
+    previous,
+    volume,
+    isMuted,
+    volumeUp,
+    volumeDown,
+    muteToggle,
+    shuffle,
+    shuffleState,
+    repeatCycle,
+    repeatState,
+    setRepeat,
+  };
 })();

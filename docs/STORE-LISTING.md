@@ -5,6 +5,10 @@ uploading `artifacts\youtube-music-for-macro-deck-extension.zip`.
 
 Submit only after the acceptance criteria in [SPEC.md](SPEC.md) §11 pass.
 
+> **If a submission is already in review, do not upload a new package.** Wait for
+> the verdict, then submit the newer version as an update. Uploading mid-review
+> either replaces the item under review or restarts the clock.
+
 ## Before you start
 
 - A Google account and a one-time USD 5 developer registration fee.
@@ -19,13 +23,13 @@ Submit only after the acceptance criteria in [SPEC.md](SPEC.md) §11 pass.
 **Name**
 
 ```
-YouTube Music for Macro Deck
+Youtube Music Controller for Macro Deck
 ```
 
 **Short description** (132 characters maximum)
 
 ```
-Control YouTube Music from your Macro Deck, with button state that follows the real player.
+Control YouTube Music from your Macro Deck: play, skip, shuffle, repeat, volume and mute.
 ```
 
 **Category:** Workflow & Planning
@@ -44,7 +48,10 @@ Get the plugin here: https://github.com/Goonsly/MacroDeck-YouTubeMusic
 WHAT IT DOES
 
 - Play, Pause, Play/Pause, Next and Previous, from your deck
-- Macro Deck variables that follow the browser, not the last button press
+- Shuffle, and Repeat: cycle it, or jump straight to off, all or one
+- Volume up, volume down and mute, affecting YouTube Music only
+- Macro Deck variables that follow the browser, not the last button press:
+  playing, volume, muted, shuffle and repeat
 - Pause the music in the browser and the deck button updates immediately
 - Works while Chrome is minimised, unfocused or behind another window
 - Reconnects on its own after a tab reload, a browser restart or a Macro Deck
@@ -63,7 +70,7 @@ website.
 SETUP
 
 1. Install the Macro Deck plugin from the link above.
-2. In Macro Deck: Extensions, YouTube Music, Configure. Copy the token.
+2. In Macro Deck: Extensions, Youtube Music Controller, Configure. Copy the token.
 3. Open this extension's options and paste the token.
 4. Open music.youtube.com and press play.
 

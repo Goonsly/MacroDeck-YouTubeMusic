@@ -52,7 +52,11 @@ timer.
 {
   "type": "state",
   "connected": true,
-  "playing": false
+  "playing": false,
+  "volume": 65,
+  "muted": false,
+  "shuffle": true,
+  "repeat": "all"
 }
 ```
 
@@ -60,11 +64,25 @@ timer.
 | --- | --- | --- |
 | `connected` | bool | At least one YouTube Music tab is present and reporting |
 | `playing` | bool | The authoritative tab is actually playing |
+| `volume` | int \| null | 0-100, or null when it could not be read |
+| `muted` | bool | The player is muted |
+| `shuffle` | bool \| null | Null when the shuffle control could not be read |
+| `repeat` | string \| null | `off`, `all`, `one`, or null when it could not be read |
 
-When `connected` is `false`, `playing` is always `false`.
+When `connected` is `false`, every other field is reset: `playing` and `muted`
+are `false`, the rest are null.
 
-V2 adds `title`, `artist`, `album`, `position` and `duration` to this message.
-V1 plugins ignore those fields if present.
+**Null means "unknown", not "zero".** The plugin leaves the matching Macro Deck
+variable at its previous value rather than writing a misleading one. Volume and
+mute are read from the media element and are effectively always available;
+shuffle and repeat are read from YouTube Music's own controls, and those are the
+fields that go null when the page changes.
+
+The plugin rejects a `volume` outside 0-100 and a `repeat` that is not one of
+the three modes, treating each as null.
+
+A later version may add `title`, `artist`, `album`, `position` and `duration`.
+Both sides ignore fields they do not recognise.
 
 ### `ping` and `pong`
 
@@ -121,6 +139,18 @@ A Macro Deck button was pressed.
 | `play_pause` | Toggle, based on observed state |
 | `next` | Next track |
 | `previous` | Previous track |
+| `shuffle` | Toggle shuffle |
+| `repeat` | Cycle repeat: off → all → one |
+| `repeat_off` | Set repeat off |
+| `repeat_all` | Set repeat to the whole queue |
+| `repeat_one` | Set repeat to the current track |
+| `volume_up` | Raise volume by 5% |
+| `volume_down` | Lower volume by 5% |
+| `mute` | Toggle mute |
+
+The three explicit repeat commands read the current mode and click the control
+until it matches, at most twice. If the mode cannot be read they do nothing and
+log it — `repeat` still works, because cycling needs no starting knowledge.
 
 The extension routes the command to the authoritative tab only. The plugin does
 not change any variable as a result of sending a command — it waits for the
@@ -153,7 +183,7 @@ translating.
 Content script → worker:
 
 ```json
-{ "type": "tab_state", "playing": true }
+{ "type": "tab_state", "playing": true, "volume": 65, "muted": false, "shuffle": true, "repeat": "all" }
 ```
 
 Worker → content script:

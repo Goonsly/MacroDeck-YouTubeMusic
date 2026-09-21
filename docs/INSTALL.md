@@ -8,7 +8,7 @@ Neither does anything without the other.
 Requires the .NET 10 SDK and Macro Deck 2.15 or newer.
 
 ```powershell
-cd E:\Projects\MacroDeck-YouTubeMusic-Plugin
+cd "E:\Projects\Youtube Music Controller"
 .\scripts\build.ps1
 ```
 
@@ -35,7 +35,7 @@ This copies the build into:
 %AppData%\Macro Deck\plugins\KeystoneDigital.YouTubeMusic\
 ```
 
-Start Macro Deck. The plugin appears under **Extensions** as *YouTube Music*.
+Start Macro Deck. The plugin appears under **Extensions** as *Youtube Music Controller*.
 
 Macro Deck 2.15 also ships an installer for extension zip files, reachable from
 its Extensions view. If your build offers it, pointing it at the release zip
@@ -43,7 +43,7 @@ saves extracting by hand. The manual copy above always works.
 
 ## 3. Get the token
 
-In Macro Deck: **Extensions → YouTube Music → Configure**.
+In Macro Deck: **Extensions → Youtube Music Controller → Configure**.
 
 Press **Copy**. That token is what lets the browser talk to the plugin, and it is
 generated fresh for this installation.
@@ -55,10 +55,12 @@ While the extension is unpublished, load it unpacked:
 1. Open `chrome://extensions`.
 2. Turn on **Developer mode** (top right).
 3. Click **Load unpacked**.
-4. Select `E:\Projects\MacroDeck-YouTubeMusic-Plugin\extension`.
+4. Select `E:\Projects\Youtube Music Controller\extension`.
 
 Chrome derives an unpacked extension's ID from that folder's path, so the ID
-stays the same as long as the folder is not moved.
+stays the same as long as the folder is not moved. Moving or renaming the folder
+gives the extension a new ID: re-load it from the new path and paste the token
+again.
 
 ## 5. Point the extension at Macro Deck
 
@@ -68,8 +70,9 @@ stays the same as long as the folder is not moved.
 4. Click **Save**.
 
 Open `https://music.youtube.com` and play something. In Macro Deck's variables
-view, `youtube_music_connected` and `youtube_music_playing` should now follow the
-player.
+view, `youtube_music_connected`, `youtube_music_playing`, `youtube_music_volume`,
+`youtube_music_muted`, `youtube_music_shuffle` and `youtube_music_repeat` should
+now follow the player.
 
 ## 6. Optional: lock the connection to this extension
 
@@ -102,9 +105,31 @@ selector. They are cosmetic; any icon pack works just as well.
 
 In Macro Deck's button editor:
 
-- **On Press → YouTube Music → Play / Pause**
+- **On Press → Youtube Music Controller → Play / Pause**
 - For the icon, bind the button state to the variable `youtube_music_playing`:
   `False` shows the play icon, `True` shows the pause icon.
+
+Thirteen actions are available, grouped by what they touch:
+
+| Group | Actions |
+| --- | --- |
+| Playback | Play / Pause, Play, Pause, Next, Previous |
+| Queue | Shuffle, Repeat, Repeat Off, Repeat All, Repeat One |
+| Sound | Volume Up, Volume Down, Mute |
+
+**Repeat** cycles off → all → one, like clicking it in YouTube Music. The three
+explicit ones land on that mode from wherever you are.
+
+**Volume** moves 5% per press. **Mute** silences YouTube Music only, not the rest
+of Windows.
+
+Buttons worth binding to state as well:
+
+| Button | Bind to | Shows |
+| --- | --- | --- |
+| Shuffle | `youtube_music_shuffle` | on or off |
+| Mute | `youtube_music_muted` | muted or not |
+| Repeat | `youtube_music_repeat` | `off`, `all` or `one` — use it as a label rather than a two-state icon |
 
 ## If something does not work
 
