@@ -37,6 +37,10 @@ This copies the build into:
 
 Start Macro Deck. The plugin appears under **Extensions** as *YouTube Music*.
 
+Macro Deck 2.15 also ships an installer for extension zip files, reachable from
+its Extensions view. If your build offers it, pointing it at the release zip
+saves extracting by hand. The manual copy above always works.
+
 ## 3. Get the token
 
 In Macro Deck: **Extensions → YouTube Music → Configure**.
@@ -78,8 +82,14 @@ extension:
 
 ## 6b. Optional: install the icon pack
 
-Each release includes `Goonsly.YoutubeIcons-<version>.zip` — play, pause,
-play/pause, next and previous at 350×350 in YouTube red. Extract it into:
+The pack lives at
+[Goonsly/MacroDeck-YoutubeIcons](https://github.com/Goonsly/MacroDeck-YoutubeIcons)
+and a submission to the Macro Deck extension store is pending. Once it is
+accepted, install it from inside Macro Deck instead of by hand.
+
+Until then, each release here includes `Goonsly.YoutubeIcons-<version>.zip` —
+play, pause, play/pause, next and previous at 350×350 in YouTube red. Extract it
+into:
 
 ```
 %AppData%\Macro Deck\iconpacks\Goonsly.YoutubeIcons\

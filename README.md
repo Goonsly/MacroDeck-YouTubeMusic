@@ -85,7 +85,9 @@ scripts/       build and deploy
 
 ## Icons
 
-An optional Macro Deck icon pack ships with each release: play, pause, play/pause,
+An optional Macro Deck icon pack ships with each release, and lives in its own
+repository at [Goonsly/MacroDeck-YoutubeIcons](https://github.com/Goonsly/MacroDeck-YoutubeIcons):
+play, pause, play/pause,
 next and previous, 350×350, in YouTube red. Extract
 `Goonsly.YoutubeIcons-1.0.0.zip` into:
 
